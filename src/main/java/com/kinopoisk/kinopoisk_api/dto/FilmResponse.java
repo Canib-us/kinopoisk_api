@@ -8,3 +8,5 @@ public class FilmResponse {
     private int totalPages;
     private FilmDTO[] items;
 }
+
+
