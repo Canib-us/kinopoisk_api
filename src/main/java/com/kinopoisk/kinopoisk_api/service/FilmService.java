@@ -1,8 +1,16 @@
 package com.kinopoisk.kinopoisk_api.service;
 
 import com.kinopoisk.kinopoisk_api.dto.*;
+import com.kinopoisk.kinopoisk_api.entity.Country;
 import com.kinopoisk.kinopoisk_api.entity.Film;
+import com.kinopoisk.kinopoisk_api.entity.Genre;
+import com.kinopoisk.kinopoisk_api.mapper.CountryMapper;
+import com.kinopoisk.kinopoisk_api.mapper.FilmMapper;
+import com.kinopoisk.kinopoisk_api.mapper.GenreMapper;
+import com.kinopoisk.kinopoisk_api.repository.CountryRepository;
 import com.kinopoisk.kinopoisk_api.repository.FilmRepository;
+import com.kinopoisk.kinopoisk_api.repository.GenreRepository;
+import jakarta.persistence.EntityManager;
 import jakarta.persistence.criteria.CriteriaBuilder;
 import jakarta.persistence.criteria.CriteriaQuery;
 import jakarta.persistence.criteria.Predicate;
@@ -20,12 +28,9 @@ import org.springframework.stereotype.Service;
 import org.springframework.web.client.HttpClientErrorException;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
-import java.util.Arrays;
 import java.util.List;
-import java.util.concurrent.Semaphore;
-import java.util.logging.Level;
-import java.util.logging.Logger;
+import java.util.stream.Collectors;
+
 
 @Service
 @AllArgsConstructor
@@ -33,148 +38,120 @@ public class FilmService {
 
     @Autowired
     private RestTemplate restTemplate;
+    @Autowired
+    private EntityManager entityManager;
 
     private final String url = "https://kinopoiskapiunofficial.tech/api/v2.2/films";
     private final String token = "003c833e-960e-448c-a10d-76863ff7e79d";
     @Autowired
     private FilmRepository filmRepository;
+    @Autowired
+    private CountryRepository countryRepository;
+    @Autowired
+    private GenreRepository genreRepository;
+    @Autowired
+    private FilmMapper filmMapper;
+    @Autowired
+    private CountryMapper countryMapper;
+    @Autowired
+    private GenreMapper genreMapper;
 
-    //to api start
-    public Film getFilmFromApi(Long filmId) {
+//to api start
+    public void fetchAndSaveCountriesAndGenres(){
         HttpHeaders headers = new HttpHeaders();
         headers.set("X-API-KEY", token);
         HttpEntity<String> entity = new HttpEntity<>(headers);
-        String urlId=url+"/{id}";
-
-        ResponseEntity<FilmDTO> response = restTemplate.exchange(urlId, HttpMethod.GET, entity, FilmDTO.class, filmId);
-
-        if (!response.getStatusCode().is2xxSuccessful()||response.getBody()==null) {
-            throw new RuntimeException("Couldn't get movie data with id: "+filmId);
-        }
-
-        FilmDTO filmDTO = response.getBody();
-        Double rating = filmDTO.getRatingKinopoisk()!=null?filmDTO.getRatingKinopoisk():0.0;
-        if(filmRepository.existsByFilmId(filmDTO.getKinopoiskId())){
-            return filmRepository.findByFilmId(filmDTO.getKinopoiskId()).orElseThrow();
-        }
-        return filmRepository.save(Film.builder()
-                .filmId(filmDTO.getKinopoiskId())
-                .filmName(filmDTO.getNameRu())
-                .year(filmDTO.getYear())
-                .rating(filmDTO.getRatingKinopoisk())
-                .description(filmDTO.getShortDescription())
-                .build());
-    }
-
-
-    public List<FilmDTO> getFilmsByType(String type) {
-        List<FilmDTO> allFilms = new ArrayList<>();
-        int page = 1;
-        boolean hasMorePages = true;
-
-        while (hasMorePages) {
-            HttpHeaders headers = new HttpHeaders();
-            headers.set("X-API-KEY", token);
-            HttpEntity<String> entity = new HttpEntity<>(headers);
-
-            String urlType = url+"?type="+type+"&page="+page;
-            ResponseEntity<FilmResponse> response = restTemplate.exchange(urlType, HttpMethod.GET, entity, FilmResponse.class);
-
-            if (!response.getStatusCode().is2xxSuccessful()||response.getBody()==null) {
-                throw new RuntimeException("Couldn't get movie data with type: "+type);
-            }
-
-            FilmDTO[] films = response.getBody().getItems();
-            allFilms.addAll(Arrays.asList(films));
-            saveFilmToDB(films);
-
-            hasMorePages = page<response.getBody().getTotalPages();
-            page++;
-
-        }
-        return allFilms;
-    }
-
-    public FiltersDTO getFilmFilters(){
-        HttpHeaders headers = new HttpHeaders();
-        headers.set("X-API-KEY", token);
-        HttpEntity<String> entity = new HttpEntity<>(headers);
-
         String urlFilters = url+"/filters";
+
         ResponseEntity<FiltersDTO> response = restTemplate.exchange(urlFilters, HttpMethod.GET, entity, FiltersDTO.class);
 
-        if (!response.getStatusCode().is2xxSuccessful()||response.getBody()==null) {
-            throw new RuntimeException("Couldn't get filters data");
+        if (response.getStatusCode().is2xxSuccessful()&&response.getBody()!=null) {
+            FiltersDTO filtersDTO = response.getBody();
+            if(filtersDTO.getCountries()!=null){
+                for (CountryDTO countryDTO : filtersDTO.getCountries()) {
+                    Country newCountry = countryMapper.toEntity(countryDTO);
+                    countryRepository.save(newCountry);
+                }
+            }
+            if (filtersDTO.getGenres() != null) {
+                for (GenreDTO genreDTO : filtersDTO.getGenres()) {
+                    Genre newGenre = genreMapper.toEntity(genreDTO);
+                    genreRepository.save(newGenre);
+                }
+            }
         }
-
-        return response.getBody();
     }
 
-    public List<FilmDTO> getAllFilmsFromApi(List<CountryDTO> countries, List<GenreDTO> genres) {
-        List<FilmDTO> allFilms = new ArrayList<>();
+    public List<CountryDTO> getAllCountries() {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Country> query = cb.createQuery(Country.class);
+        Root<Country> root = query.from(Country.class);
+        query.select(root);
+        List<Country> countries = entityManager.createQuery(query).getResultList();
 
-        Semaphore semaphore = new Semaphore(5);
+        return countries.stream()
+                .map(countryMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    public List<GenreDTO> getAllGenres() {
+        CriteriaBuilder cb = entityManager.getCriteriaBuilder();
+        CriteriaQuery<Genre> query = cb.createQuery(Genre.class);
+        Root<Genre> root = query.from(Genre.class);
+        query.select(root);
+        List<Genre> genres = entityManager.createQuery(query).getResultList();
+
+        return genres.stream()
+                .map(genreMapper::toDto)
+                .collect(Collectors.toList());
+    }
+
+    public void saveFilmToDB(FilmDTO[] filmDTOS){
+        for (FilmDTO filmDTO : filmDTOS) {
+            if(!filmRepository.existsByFilmId(filmDTO.getKinopoiskId())){
+                Film film = filmMapper.toEntity(filmDTO);
+                filmRepository.save(film);
+            }
+        }
+    }
+    public void fetchAndSaveAllFilms(){
+        List<CountryDTO> countries = getAllCountries();
+        List<GenreDTO> genres = getAllGenres();
+
         int totalReq = 0;
+        int maxReq = 500;
 
         for (CountryDTO country : countries) {
             for (GenreDTO genre : genres) {
                 int page = 1;
                 boolean hasMorePages = true;
 
-                while (hasMorePages&&totalReq<=500) {
-                    String requestUrl = String.format("%s?countryId=%d&genreId=%d&page=%d", url, country.getId(), genre.getId(), page);
+                while (hasMorePages && totalReq <= maxReq) {
+                    String reqURL = String.format("%s?countries=%d&genres=%d&page=%d", url,
+                            country.getId(), genre.getId(), page);
+
                     HttpHeaders headers = new HttpHeaders();
                     headers.set("X-API-KEY", token);
                     HttpEntity<String> entity = new HttpEntity<>(headers);
 
-                    try {
-                        semaphore.acquire();
-                        Logger.getLogger(FilmService.class.getName()).log(Level.INFO, "Request URL: " + requestUrl);
-                        ResponseEntity<FilmResponse> response = restTemplate.exchange(requestUrl, HttpMethod.GET, entity, FilmResponse.class);
-                        Logger.getLogger(FilmService.class.getName()).log(Level.INFO, "Response: " + response.getBody());
-
+                    try{
+                        ResponseEntity<FilmResponse> response = restTemplate.exchange(reqURL,
+                                HttpMethod.GET, entity, FilmResponse.class);
                         if (response.getStatusCode().is2xxSuccessful() && response.getBody() != null) {
                             FilmDTO[] films = response.getBody().getItems();
-                            allFilms.addAll(Arrays.asList(films));
                             saveFilmToDB(films);
                             hasMorePages = page < response.getBody().getTotalPages();
                             page++;
-                        } else {
+                        }else {
                             hasMorePages = false;
                         }
-
                         totalReq++;
-                        if(totalReq%5==0){
-                            Thread.sleep(1000);
-                        }
-
                     } catch (HttpClientErrorException e) {
-                        Logger.getLogger(FilmService.class.getName()).log(Level.SEVERE, "Client error: " + e.getMessage(), e);
                         hasMorePages = false;
                     } catch (Exception e) {
-                        Logger.getLogger(FilmService.class.getName()).log(Level.SEVERE, "Error searching films", e);
                         hasMorePages = false;
-                    } finally {
-                        semaphore.release();
                     }
                 }
-            }
-        }
-
-        return allFilms;
-    }
-
-    public void saveFilmToDB(FilmDTO[] filmDTOS){
-        for (FilmDTO filmDTO : filmDTOS) {
-            if(!filmRepository.existsByFilmId(filmDTO.getKinopoiskId())){
-                Film film = Film.builder()
-                        .filmId(filmDTO.getKinopoiskId())
-                        .filmName(filmDTO.getNameRu())
-                        .year(filmDTO.getYear())
-                        .rating(filmDTO.getRatingKinopoisk())
-                        .description(filmDTO.getShortDescription())
-                        .build();
-                filmRepository.save(film);
             }
         }
     }
@@ -183,49 +160,41 @@ public class FilmService {
     //to db start
     public Page<FilmDTO> getFilmsFromDB(String name, Integer yearFrom, Integer yearTo, Double ratingFrom,
                                         Double ratingTo, Pageable pageable){
-        //specification`s start
-        Specification<Film> spec = new Specification<Film>() {
-            @Override
-            public Predicate toPredicate(Root<Film> root, CriteriaQuery<?> query, CriteriaBuilder criteriaBuilder) {
-                Predicate predicate = criteriaBuilder.conjunction();
+        Specification<Film> spec = (root, query, criteriaBuilder) -> {
+            Predicate predicate = criteriaBuilder.conjunction();
 
-                if(name!=null){
-                    predicate = criteriaBuilder.and(predicate,
-                            criteriaBuilder.like(root.get("filmName"),"%"+name+"%"));
-                }
-                if(yearFrom!=null){
-                    predicate = criteriaBuilder.and(predicate,
-                            criteriaBuilder.greaterThanOrEqualTo(root.get("year"),yearFrom));
-                }
-                if (yearTo!=null){
-                    predicate = criteriaBuilder.and(predicate,
-                            criteriaBuilder.lessThanOrEqualTo(root.get("year"),yearTo));
-                }
-                if(ratingFrom!=null){
-                    predicate = criteriaBuilder.and(predicate,
-                            criteriaBuilder.greaterThanOrEqualTo(root.get("rating"),ratingFrom));
-                }
-                if(ratingTo!=null){
-                    predicate = criteriaBuilder.and(predicate,
-                            criteriaBuilder.lessThanOrEqualTo(root.get("rating"),ratingTo));
-                }
-                return predicate;
+            if(name!=null){
+                predicate = criteriaBuilder.and(predicate,
+                        criteriaBuilder.like(root.get("filmName"),"%"+name+"%"));
             }
+            if(yearFrom!=null){
+                predicate = criteriaBuilder.and(predicate,
+                        criteriaBuilder.greaterThanOrEqualTo(root.get("year"),yearFrom));
+            }
+            if (yearTo!=null){
+                predicate = criteriaBuilder.and(predicate,
+                        criteriaBuilder.lessThanOrEqualTo(root.get("year"),yearTo));
+            }
+            if(ratingFrom!=null){
+                predicate = criteriaBuilder.and(predicate,
+                        criteriaBuilder.greaterThanOrEqualTo(root.get("rating"),ratingFrom));
+            }
+            if(ratingTo!=null){
+                predicate = criteriaBuilder.and(predicate,
+                        criteriaBuilder.lessThanOrEqualTo(root.get("rating"),ratingTo));
+            }
+            return predicate;
         };
-        //specification`s end
+
+        System.out.println("Executing query with spec: " + spec);
         Page<Film> filmsPage = filmRepository.findAll(spec, pageable);
-
-        return filmsPage.map(film -> {
-            FilmDTO filmDTO = new FilmDTO();
-            filmDTO.setKinopoiskId(film.getFilmId());
-            filmDTO.setNameRu(film.getFilmName());
-            filmDTO.setYear(film.getYear());
-            filmDTO.setRatingKinopoisk(film.getRating());
-            filmDTO.setShortDescription(film.getDescription());
-            return filmDTO;
-        });
-
+        System.out.println("Query result: " + filmsPage);
+        if (filmsPage == null) {
+            return Page.empty();
+        }
+        return filmsPage.map(filmMapper::toDto);
     }
+
 }
 
 

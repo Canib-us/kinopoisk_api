@@ -18,7 +18,7 @@ public class EmailService {
 
     public void sendSimpleMail(String to, String subject, String content) {
         SimpleMailMessage message = new SimpleMailMessage();
-        message.setFrom("example@yandex.ru");
+        message.setFrom("daniil.baljev@yandex.ru");
         message.setTo(to);
         message.setSubject(subject);
         message.setText(content);
@@ -31,23 +31,16 @@ public class EmailService {
         xml.append("<films>\n");
         for (FilmDTO film : films) {
             xml.append("<film>\n")
-                    .append("<name>").append(escapeXML(film.getNameRu())).append("</name>\n")
+                    .append("<name>").append(film.getNameRu()).append("</name>\n")
                     .append("<year>").append(film.getYear()).append("</year>\n")
                     .append("<rating>").append(film.getRatingKinopoisk()).append("</rating>\n")
-                    .append("<description>").append(escapeXML(film.getShortDescription())).append("</description>\n")
+                    .append("<description>").append(film.getShortDescription()).append("</description>\n")
                     .append("</film>\n");
         }
         xml.append("</films>");
         return xml.toString();
     }
-
-    private String escapeXML(String value) {
-        if(value == null) return null;
-        return value.replaceAll("&", "&amp;")
-                .replaceAll("<", "&lt;")
-                .replaceAll(">", "&gt;")
-                .replaceAll("\"", "&quot;")
-                .replaceAll("'", "&apos;");
-
-    }
 }
+
+
+

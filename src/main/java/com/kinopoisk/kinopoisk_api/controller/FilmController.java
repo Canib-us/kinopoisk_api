@@ -2,7 +2,6 @@ package com.kinopoisk.kinopoisk_api.controller;
 
 import com.kinopoisk.kinopoisk_api.dto.FilmDTO;
 import com.kinopoisk.kinopoisk_api.dto.FiltersDTO;
-import com.kinopoisk.kinopoisk_api.entity.Film;
 import com.kinopoisk.kinopoisk_api.service.EmailService;
 import com.kinopoisk.kinopoisk_api.service.FilmService;
 import lombok.AllArgsConstructor;
@@ -11,10 +10,8 @@ import org.springframework.data.domain.Pageable;
 import org.springframework.data.web.PageableDefault;
 import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
-import org.springframework.mail.javamail.JavaMailSender;
 import org.springframework.web.bind.annotation.*;
 
-import java.util.List;
 import java.util.Optional;
 
 @RestController
@@ -25,39 +22,23 @@ public class FilmController {
     private FilmService filmService;
     private EmailService emailService;
 
-    @GetMapping("/{id}")
-    public Film getDataById(@PathVariable Long id){
-        return filmService.getFilmFromApi(id);
-    }
-
-    @GetMapping("/type/{type}")
-    public ResponseEntity <List<FilmDTO>> getFilmsByType(@PathVariable String type){
-        try{
-            List<FilmDTO> films = filmService.getFilmsByType(type);
-            return ResponseEntity.ok(films);
-        } catch (Exception e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
-        }
-    }
-
     @GetMapping("/filters")
-    public ResponseEntity<FiltersDTO> getFilmFilters(){
-        try {
-            FiltersDTO filters = filmService.getFilmFilters();
-            return ResponseEntity.ok(filters);
+    public ResponseEntity<FiltersDTO> getFilters(){
+        try{
+            filmService.fetchAndSaveCountriesAndGenres();
+            return ResponseEntity.ok(new FiltersDTO());
         } catch (Exception e){
             return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
         }
     }
 
-    @GetMapping("/search")
-    public ResponseEntity<List<FilmDTO>> getAllFilms(){
+    @GetMapping("/fetchAll")
+    public ResponseEntity<String> fetchAndSaveFilms(){
         try {
-            FiltersDTO filters = filmService.getFilmFilters();
-            List<FilmDTO> films = filmService.getAllFilmsFromApi(filters.getCountries(), filters.getGenres());
-            return ResponseEntity.ok(films);
-        } catch (Exception e){
-            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body(null);
+            filmService.fetchAndSaveAllFilms();
+            return ResponseEntity.ok("All films saved");
+        } catch (Exception e) {
+            return ResponseEntity.status(HttpStatus.INTERNAL_SERVER_ERROR).body("Error while fetching all films");
         }
     }
 
@@ -69,7 +50,7 @@ public class FilmController {
             @RequestParam Optional<Double> ratingFrom,
             @RequestParam Optional<Double> ratingTo,
             @RequestParam Optional<String> email,
-            @PageableDefault (size = 10) Pageable pageable){
+            @PageableDefault (size = 20) Pageable pageable){
 
         Page<FilmDTO> filmDTOS = filmService.getFilmsFromDB(
                 name.orElse(null),
@@ -85,9 +66,6 @@ public class FilmController {
         });
         return ResponseEntity.ok(filmDTOS);
     }
-
-
-
 
 }
 
