@@ -10,7 +10,6 @@ import com.kinopoisk.kinopoisk_api.mapper.GenreMapper;
 import com.kinopoisk.kinopoisk_api.repository.CountryRepository;
 import com.kinopoisk.kinopoisk_api.repository.FilmRepository;
 import com.kinopoisk.kinopoisk_api.repository.GenreRepository;
-import jakarta.persistence.EntityManager;
 import org.junit.jupiter.api.BeforeEach;
 import org.junit.jupiter.api.Test;
 import org.junit.jupiter.api.extension.ExtendWith;
@@ -30,9 +29,7 @@ import org.springframework.http.HttpStatus;
 import org.springframework.http.ResponseEntity;
 import org.springframework.web.client.RestTemplate;
 
-import java.util.ArrayList;
 import java.util.List;
-import java.util.logging.Logger;
 
 import static org.junit.jupiter.api.Assertions.assertEquals;
 import static org.junit.jupiter.api.Assertions.assertFalse;
@@ -42,12 +39,8 @@ import static org.mockito.Mockito.*;
 
 @ExtendWith(MockitoExtension.class)
 public class FilmServiceTest {
-
-    private static Logger logger = Logger.getLogger(FilmServiceTest.class.getName());
     @Mock
     private RestTemplate restTemplate;
-    @Mock
-    private EntityManager entityManager;
     @Mock
     private FilmRepository filmRepository;
     @Mock
