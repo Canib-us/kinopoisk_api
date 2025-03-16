@@ -42,7 +42,7 @@ public class FilmService {
     private EntityManager entityManager;
 
     private final String url = "https://kinopoiskapiunofficial.tech/api/v2.2/films";
-    private final String token = "003c833e-960e-448c-a10d-76863ff7e79d";
+    private final String token = "b57c2f66-a158-431d-a6af-aadfc482671e";
     @Autowired
     private FilmRepository filmRepository;
     @Autowired
