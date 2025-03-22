@@ -1,0 +1,16 @@
+version: '3.8'
+
+services:
+  activemq:
+    image: webcenter/activemq:latest
+    ports:
+      - "61616:61616"
+      - "8161:8161"
+    environment:
+      - ACTIVEMQ_USER = admin
+      - ACTIVEMQ_PASSWORD = admin
+    networks:
+      - activemq-network
+
+networks:
+  activemq-network:
