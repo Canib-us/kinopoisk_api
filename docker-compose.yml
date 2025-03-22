@@ -9,8 +9,18 @@ services:
     environment:
       - ACTIVEMQ_USER = admin
       - ACTIVEMQ_PASSWORD = admin
-    networks:
-      - activemq-network
+    volumes:
+      - activemq-data:/opt/activemq/data
 
-networks:
-  activemq-network:
+  mysql:
+    image: mysql:8.0
+    environment:
+      MYSQL_ROOT_PASSWORD: root
+      MYSQL_DATABASE: kinopoisk
+      MYSQL_USER: user
+      MYSQL_PASSWORD: password
+    ports:
+      - "3307:3306"
+
+volumes:
+  activemq-data:
