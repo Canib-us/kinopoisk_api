@@ -15,6 +15,8 @@ import java.util.List;
 @NoArgsConstructor
 @JsonIgnoreProperties(ignoreUnknown = true)
 public class FilmDTO implements Serializable {
+    private static final long serialVersionUID = 1L;
+
     private Long kinopoiskId;
     private String nameRu;
     private Integer year;
@@ -26,7 +28,9 @@ public class FilmDTO implements Serializable {
 
     @Data
     @NoArgsConstructor
-    public static class Genre{
+    public static class Genre implements Serializable{
+        private static final long serialVersionUID = 1L;
+
         private String genre;
     }
 }

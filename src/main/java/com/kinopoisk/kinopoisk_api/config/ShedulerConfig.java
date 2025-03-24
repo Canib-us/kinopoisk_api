@@ -36,10 +36,7 @@ public class ShedulerConfig {
         return TriggerBuilder.newTrigger()
                 .forJob(jobDetail)
                 .withIdentity("filmFetchTrigger")
-                //.withSchedule(CronScheduleBuilder.dailyAtHourAndMinute(7, 0))
-                .withSchedule(SimpleScheduleBuilder.simpleSchedule()
-                        .withIntervalInMinutes(5)
-                        .repeatForever())
+                .withSchedule(CronScheduleBuilder.dailyAtHourAndMinute(7, 0))
                 .build();
     }
 
